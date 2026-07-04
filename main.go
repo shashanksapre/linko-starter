@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"io"
@@ -27,7 +28,8 @@ func initializeLogger() *log.Logger {
 			log.Fatalf("failed to open log file: %v", err)
 		}
 
-		multiWriter := io.MultiWriter(os.Stderr, logFile)
+		bufferedFile := bufio.NewWriterSize(logFile, 8192)
+		multiWriter := io.MultiWriter(os.Stderr, bufferedFile)
 		logger = log.New(multiWriter, "", log.LstdFlags)
 	}
 
