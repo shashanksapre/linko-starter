@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,13 +17,13 @@ import (
 
 type closeFunc func() error
 
-func initializeLogger() (*log.Logger, closeFunc, error) {
+func initializeLogger() (*slog.Logger, closeFunc, error) {
 	logFileLocation := os.Getenv("LINKO_LOG_FILE")
 
-	var logger *log.Logger
+	var logger *slog.Logger
 
 	if logFileLocation == "" {
-		logger = log.New(os.Stderr, "", log.LstdFlags)
+		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 		noOp := func() error {
 			return nil
@@ -39,7 +39,7 @@ func initializeLogger() (*log.Logger, closeFunc, error) {
 
 		bufferedFile := bufio.NewWriterSize(logFile, 8192)
 		multiWriter := io.MultiWriter(os.Stderr, bufferedFile)
-		logger = log.New(multiWriter, "", log.LstdFlags)
+		logger = slog.New(slog.NewTextHandler(multiWriter, nil))
 
 		closer := func() error {
 			err := bufferedFile.Flush()
@@ -92,7 +92,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	st, err := store.New(dataDir, logger)
 
 	if err != nil {
-		logger.Printf("failed to create store: %v", err)
+		logger.Info(fmt.Sprintf("failed to create store: %v", err))
 		return 1
 	}
 
@@ -108,12 +108,12 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Printf("failed to shutdown server: %v", err)
+		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
 		return 1
 	}
 
 	if serverErr != nil {
-		logger.Printf("server error: %v", serverErr)
+		logger.Info(fmt.Sprintf("server error: %v", serverErr))
 		return 1
 	}
 	return 0
