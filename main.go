@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -22,8 +21,12 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 
 	var logger *slog.Logger
 
+	debugHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
 	if logFileLocation == "" {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
+		logger = slog.New(debugHandler)
 
 		noOp := func() error {
 			return nil
@@ -38,8 +41,12 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		}
 
 		bufferedFile := bufio.NewWriterSize(logFile, 8192)
-		multiWriter := io.MultiWriter(os.Stderr, bufferedFile)
-		logger = slog.New(slog.NewTextHandler(multiWriter, nil))
+
+		infoHandler := slog.NewTextHandler(bufferedFile, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})
+
+		logger = slog.New(slog.NewMultiHandler(infoHandler, debugHandler))
 
 		closer := func() error {
 			err := bufferedFile.Flush()
@@ -92,7 +99,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	st, err := store.New(dataDir, logger)
 
 	if err != nil {
-		logger.Info(fmt.Sprintf("failed to create store: %v", err))
+		logger.Error(fmt.Sprintf("failed to create store: %v", err))
 		return 1
 	}
 
@@ -108,12 +115,12 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
+		logger.Error(fmt.Sprintf("failed to shutdown server: %v", err))
 		return 1
 	}
 
 	if serverErr != nil {
-		logger.Info(fmt.Sprintf("server error: %v", serverErr))
+		logger.Error(fmt.Sprintf("server error: %v", serverErr))
 		return 1
 	}
 	return 0
