@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"boot.dev/linko/internal/build"
 	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
 	pkgerrors "github.com/pkg/errors"
@@ -87,6 +88,11 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 	if logFileLocation == "" {
 		logger = slog.New(debugHandler)
 
+		logger = logger.With(
+			slog.String("git_sha", build.GitSHA),
+			slog.String("build_time", build.BuildTime),
+		)
+
 		noOp := func() error {
 			return nil
 		}
@@ -107,6 +113,11 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		})
 
 		logger = slog.New(slog.NewMultiHandler(infoHandler, debugHandler))
+
+		logger = logger.With(
+			slog.String("git_sha", build.GitSHA),
+			slog.String("build_time", build.BuildTime),
+		)
 
 		closer := func() error {
 			err := bufferedFile.Flush()
