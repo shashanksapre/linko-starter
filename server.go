@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -66,6 +67,19 @@ func httpError(ctx context.Context, w http.ResponseWriter, status int, err error
 	http.Error(w, err.Error(), status)
 }
 
+func requestIDHandler() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestId := r.Header.Get("X-Request-ID")
+			if requestId == "" {
+				requestId = rand.Text()
+			}
+			w.Header().Set("X-Request-ID", requestId)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +91,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			r = r.WithContext(context.WithValue(r.Context(), logContextKey, logContext))
 			next.ServeHTTP(spyWriter, r)
 			logAttributes := []any{
+				slog.String("request_id", spyWriter.Header().Get("X-Request-ID")),
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.String("client_ip", r.RemoteAddr),
@@ -105,7 +120,7 @@ func newServer(store store.Store, port int, cancel context.CancelFunc, logger *s
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: requestLogger(logger)(mux),
+		Handler: requestIDHandler()(requestLogger(logger)(mux)),
 	}
 
 	s := &server{
