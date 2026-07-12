@@ -16,13 +16,25 @@ import (
 
 type closeFunc func() error
 
+func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == "error" {
+		err, ok := a.Value.Any().(error)
+		if !ok {
+			return a
+		}
+		return slog.String("error", fmt.Sprintf("%+v", err))
+	}
+	return a
+}
+
 func initializeLogger() (*slog.Logger, closeFunc, error) {
 	logFileLocation := os.Getenv("LINKO_LOG_FILE")
 
 	var logger *slog.Logger
 
 	debugHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level:       slog.LevelDebug,
+		ReplaceAttr: replaceAttr,
 	})
 
 	if logFileLocation == "" {
@@ -43,7 +55,8 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		bufferedFile := bufio.NewWriterSize(logFile, 8192)
 
 		infoHandler := slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level:       slog.LevelInfo,
+			ReplaceAttr: replaceAttr,
 		})
 
 		logger = slog.New(slog.NewMultiHandler(infoHandler, debugHandler))
