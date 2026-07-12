@@ -76,6 +76,9 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 }
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
+	env := os.Getenv("ENV")
+	hostname, _ := os.Hostname()
+
 	logFileLocation := os.Getenv("LINKO_LOG_FILE")
 
 	var logger *slog.Logger
@@ -91,6 +94,8 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		logger = logger.With(
 			slog.String("git_sha", build.GitSHA),
 			slog.String("build_time", build.BuildTime),
+			slog.String("env", env),
+			slog.String("hostname", hostname),
 		)
 
 		noOp := func() error {
@@ -117,6 +122,8 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		logger = logger.With(
 			slog.String("git_sha", build.GitSHA),
 			slog.String("build_time", build.BuildTime),
+			slog.String("env", env),
+			slog.String("hostname", hostname),
 		)
 
 		closer := func() error {
