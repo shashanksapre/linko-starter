@@ -64,7 +64,21 @@ func httpError(ctx context.Context, w http.ResponseWriter, status int, err error
 	if logCtx, ok := ctx.Value(logContextKey).(*LogContext); ok {
 		logCtx.Error = err
 	}
-	http.Error(w, err.Error(), status)
+
+	var errorMessage string
+
+	switch status {
+	case 401:
+		fallthrough
+	case 403:
+		fallthrough
+	case 500:
+		errorMessage = http.StatusText(status)
+	default:
+		errorMessage = err.Error()
+	}
+
+	http.Error(w, errorMessage, status)
 }
 
 func requestIDHandler() func(http.Handler) http.Handler {

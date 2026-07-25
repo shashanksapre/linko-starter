@@ -47,16 +47,16 @@ func (s *server) handlerShortenLink(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := url.Parse(longURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		httpError(r.Context(), w, http.StatusBadRequest, errors.New("invalid url: must include scheme (http/https) and host"))
+		httpError(r.Context(), w, http.StatusBadRequest, errors.New("invalid URL: must include scheme (http/https) and host"))
 		return
 	}
 	if err := checkDestination(longURL); err != nil {
-		httpError(r.Context(), w, http.StatusBadRequest, fmt.Errorf("invalid target url: %w", err))
+		httpError(r.Context(), w, http.StatusBadRequest, fmt.Errorf("invalid target URL: %w", err))
 		return
 	}
 	shortCode, err := s.store.Create(r.Context(), longURL)
 	if err != nil {
-		httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("failed to shorten url: %w", err))
+		httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("failed to shorten URL: %w", err))
 		return
 	}
 	s.logger.Info("Successfully generated short code", "code", shortCode, "url", longURL)
