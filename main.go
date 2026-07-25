@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -76,6 +78,13 @@ func errorAttributesBuilder(err error) []slog.Attr {
 }
 
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+
+	var sensitiveKeys = []string{"password", "key", "apikey", "secret", "pin", "creditcardno", "user"}
+
+	if slices.Contains(sensitiveKeys, a.Key) {
+		return slog.String(a.Key, "[REDACTED]")
+	}
+
 	if a.Key == "error" {
 		err, ok := a.Value.Any().(error)
 
@@ -99,7 +108,27 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 		}
 
 	}
-	return a
+
+	stringValue, ok := a.Value.Any().(string)
+
+	if !ok {
+		return a
+	}
+
+	urlValue, err := url.Parse(stringValue)
+
+	if err != nil || urlValue.User == nil {
+		return a
+	} else {
+		password, ok := urlValue.User.Password()
+
+		if ok {
+			redactedStringValue := strings.ReplaceAll(stringValue, password, "[REDACTED]")
+			return slog.String(a.Key, redactedStringValue)
+		} else {
+			return a
+		}
+	}
 }
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
