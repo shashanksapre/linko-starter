@@ -4,6 +4,8 @@ go 1.26
 
 require golang.org/x/crypto v0.49.0
 
+require gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+
 require (
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-isatty v0.0.23

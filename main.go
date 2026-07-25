@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -18,6 +17,7 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	pkgerrors "github.com/pkg/errors"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type closeFunc func() error
@@ -107,16 +107,16 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 
 		return logger, noOp, nil
 	} else {
-		logFile, err := os.OpenFile(logFileLocation, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
-
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to open log file: %w", err)
+		lumberLogger := &lumberjack.Logger{
+			Filename:   logFileLocation,
+			MaxSize:    1,
+			MaxAge:     28,
+			MaxBackups: 10,
+			LocalTime:  false,
+			Compress:   true,
 		}
 
-		bufferedFile := bufio.NewWriterSize(logFile, 8192)
-
-		infoHandler := slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
-			Level:       slog.LevelInfo,
+		infoHandler := slog.NewJSONHandler(lumberLogger, &slog.HandlerOptions{
 			ReplaceAttr: replaceAttr,
 		})
 
@@ -128,15 +128,8 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 			slog.String("env", env),
 			slog.String("hostname", hostname),
 		)
-
 		closer := func() error {
-			err := bufferedFile.Flush()
-
-			if err != nil {
-				return err
-			}
-
-			err = logFile.Close()
+			err := lumberLogger.Close()
 
 			if err != nil {
 				return err
