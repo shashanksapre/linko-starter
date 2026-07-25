@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +32,29 @@ type stackTracer interface {
 type multiError interface {
 	error
 	Unwrap() []error
+}
+
+func redactIP(ipAddr string) string {
+	host, _, err := net.SplitHostPort(ipAddr)
+
+	if err != nil {
+		return ipAddr
+	}
+
+	parsedIP := net.ParseIP(host)
+
+	if parsedIP == nil {
+		return ipAddr
+	}
+
+	ipV4 := parsedIP.To4()
+
+	if ipV4 != nil {
+		_bytes := strings.Split(ipV4.String(), ".")
+		return strings.Join(_bytes[0:len(_bytes)-1], ".") + ".x"
+	} else {
+		return ipAddr
+	}
 }
 
 func errorAttributesBuilder(err error) []slog.Attr {
