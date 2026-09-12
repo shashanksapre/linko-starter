@@ -33,18 +33,21 @@ func (s *server) authMiddleware(next http.Handler) http.Handler {
 			httpError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
+
+		ctx, span := tracer.Start(r.Context(), "auth.validate_password")
 		ok, err := s.validatePassword(password, stored)
+		span.End()
 		if err != nil {
-			httpError(r.Context(), w, http.StatusInternalServerError, fmt.Errorf("internal server error: %w", err))
+			httpError(ctx, w, http.StatusInternalServerError, fmt.Errorf("internal server error: %w", err))
 			return
 		}
 		if !ok {
-			httpError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+			httpError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
-		r = r.WithContext(context.WithValue(r.Context(), UserContextKey, username))
+		r = r.WithContext(context.WithValue(ctx, UserContextKey, username))
 
-		logContext, ok := r.Context().Value(logContextKey).(*LogContext)
+		logContext, ok := ctx.Value(logContextKey).(*LogContext)
 
 		if ok {
 			logContext.Username = username
